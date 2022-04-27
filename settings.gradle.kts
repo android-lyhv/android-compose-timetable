@@ -8,4 +8,4 @@ dependencyResolutionManagement {
 }
 rootProject.name = "ScheduleCalendar"
 include(":app")
- 
+include(":timetable")
