@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar
+package com.lyhv.timetable_sample
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas

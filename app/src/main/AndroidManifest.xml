@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.halilibo.schedulecalendar">
+    package="com.lyhv.timetable_sample">
 
     <application
         android:allowBackup="true"
@@ -8,10 +8,10 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:name="com.halilibo.schedulecalendar.CalendarApplication"
+        android:name="com.lyhv.timetable_sample.CalendarApplication"
         android:theme="@style/Theme.ScheduleCalendar">
         <activity
-            android:name="com.halilibo.schedulecalendar.MainActivity"
+            android:name="com.lyhv.timetable_sample.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.ScheduleCalendar.NoActionBar">

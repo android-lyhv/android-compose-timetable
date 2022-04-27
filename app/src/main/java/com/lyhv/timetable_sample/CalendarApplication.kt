@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar
+package com.lyhv.timetable_sample
 
 import android.app.Application
 import com.jakewharton.threetenabp.AndroidThreeTen

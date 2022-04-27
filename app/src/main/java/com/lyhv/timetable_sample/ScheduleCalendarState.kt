@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar
+package com.lyhv.timetable_sample
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.gestures.FlingBehavior

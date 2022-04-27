@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar.ui.theme
+package com.lyhv.timetable_sample.ui.theme
 
 import androidx.compose.material.Typography
 import androidx.compose.ui.text.TextStyle

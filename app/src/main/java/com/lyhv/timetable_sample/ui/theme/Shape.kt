@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar.ui.theme
+package com.lyhv.timetable_sample.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Shapes

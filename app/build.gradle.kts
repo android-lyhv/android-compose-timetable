@@ -8,7 +8,7 @@ android {
     buildToolsVersion = "30.0.3"
 
     defaultConfig {
-        applicationId = "com.halilibo.schedulecalendar"
+        applicationId = "com.lyhv.timetable_sample"
         minSdk = 23
         targetSdk = 31
         versionCode = 1

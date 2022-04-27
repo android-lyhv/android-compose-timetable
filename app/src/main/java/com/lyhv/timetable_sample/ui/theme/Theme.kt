@@ -1,4 +1,4 @@
-package com.halilibo.schedulecalendar.ui.theme
+package com.lyhv.timetable_sample.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.MaterialTheme
