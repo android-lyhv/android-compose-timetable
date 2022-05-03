@@ -1,22 +1,38 @@
 package com.halilibo.schedulecalendar
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
-import androidx.compose.runtime.*
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.ParentDataModifier
@@ -33,8 +49,8 @@ import com.halilibo.schedulecalendar.ui.theme.G500
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.format.DateTimeFormatter
 import org.threeten.bp.temporal.ChronoUnit
-import java.util.*
-
+import kotlin.coroutines.coroutineContext
+import kotlin.math.roundToInt
 
 @Composable
 fun ScheduleCalendar(
@@ -44,76 +60,114 @@ fun ScheduleCalendar(
     sections: List<CalendarSection> = emptyList(),
     now: LocalDateTime = LocalDateTime.now(),
     eventTimesVisible: Boolean = true
-) = BoxWithConstraints(
-    modifier
-        .fillMaxWidth()
-        .scrollable(
-            state.scrollableState,
-            Orientation.Horizontal,
-            flingBehavior = state.scrollFlingBehavior
-        )
 ) {
-    state.updateView(viewSpan, constraints.maxWidth)
+//    modifier
+//        .fillMaxWidth()
+//        .scrollable(
+//            state.scrollableState,
+//            Orientation.Horizontal,
+//            flingBehavior = state.scrollFlingBehavior
+//        )
+    val scale = remember { mutableStateOf(1f) }
+    val offset = remember { mutableStateOf(Offset.Zero) }
+    val stateZoom = rememberTransformableState { sca, offsetChange, rotationChange ->
+        scale.value = scale.value * sca
+        offset.value = offset.value + offsetChange
+    }
+    val origin = TransformOrigin.Center
+    val offsetX = remember { mutableStateOf(0f) }
+    val offsetY = remember { mutableStateOf(0f) }
+    BoxWithConstraints(
+        modifier
+            .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
+            .pointerInput(1) {
+                detectDragGestures { change, dragAmount ->
+                    change.consumeAllChanges()
+                    Log.d("TAG", "ScheduleCalendar: detectDragGestures $dragAmount")
+//                    offsetX.value += dragAmount.x
+//                    offsetY.value += dragAmount.y
+                }
 
-    Column {
-        DaysRow(
-            state = state,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp)
-        )
-
-        HoursRow(state)
-
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Column {
-                sections.forEach {
-                    CalendarSectionRow(
-                        section = it,
-                        state = state,
-                        eventTimesVisible = eventTimesVisible
-                    )
+            }
+            .pointerInput(2) {
+                detectTapGestures(
+                    onTap = {
+                        Log.d("TAG", "ScheduleCalendar: $it")
+                    }
+                )
+            }
+            .pointerInput(3) {
+                detectTransformGestures { centroid, pan, zoom, rotation ->
+                    Log.d("TAG", "ScheduleCalendar: $centroid, $pan, $zoom, $rotation ")
+                    offsetX.value += pan.x
+                    offsetY.value += pan.y
                 }
             }
+            .fillMaxSize()
 
-            // hour dividers
-            Canvas(modifier = Modifier.matchParentSize()) {
-                state.visibleHours.forEach { localDateTime ->
-                    val offsetPercent = state.offsetFraction(localDateTime)
-                    drawLine(
-                        color = Color.Gray,
-                        strokeWidth = 2f,
-                        start = Offset(offsetPercent * size.width, 0f),
-                        end = Offset(offsetPercent * size.width, size.height),
-                        pathEffect = PathEffect.dashPathEffect(
-                            intervals = floatArrayOf(10f, 20f),
-                            phase = 5f
+    ) {
+        state.updateView(viewSpan, constraints.maxWidth)
+
+        Column {
+            DaysRow(
+                state = state,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+            )
+
+            HoursRow(state)
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    sections.forEach {
+                        CalendarSectionRow(
+                            section = it,
+                            state = state,
+                            eventTimesVisible = eventTimesVisible
                         )
-                    )
+                    }
+                }
+
+                // hour dividers
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    state.visibleHours.forEach { localDateTime ->
+                        val offsetPercent = state.offsetFraction(localDateTime)
+                        drawLine(
+                            color = Color.Gray,
+                            strokeWidth = 2f,
+                            start = Offset(offsetPercent * size.width, 0f),
+                            end = Offset(offsetPercent * size.width, size.height),
+                            pathEffect = PathEffect.dashPathEffect(
+                                intervals = floatArrayOf(10f, 20f),
+                                phase = 5f
+                            )
+                        )
+                    }
                 }
             }
         }
-    }
 
-    DayDividers(
-        state = state,
-        modifier = Modifier.matchParentSize()
-    )
+        DayDividers(
+            state = state,
+            modifier = Modifier.matchParentSize()
+        )
 
-    // "now" indicator
-    Canvas(modifier = Modifier.matchParentSize()) {
-        val offsetPercent = state.offsetFraction(now)
-        drawLine(
-            color = Color.Magenta,
-            strokeWidth = 6f,
-            start = Offset(offsetPercent * size.width, 0f),
-            end = Offset(offsetPercent * size.width, size.height)
-        )
-        drawCircle(
-            Color.Magenta,
-            center = Offset(offsetPercent * size.width, 12f),
-            radius = 12f
-        )
+        // "now" indicator
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val offsetPercent = state.offsetFraction(now)
+            drawLine(
+                color = Color.Magenta,
+                strokeWidth = 6f,
+                start = Offset(offsetPercent * size.width, 0f),
+                end = Offset(offsetPercent * size.width, size.height)
+            )
+            drawCircle(
+                Color.Magenta,
+                center = Offset(offsetPercent * size.width, 12f),
+                radius = 12f
+            )
+        }
     }
 }
 
@@ -132,7 +186,9 @@ fun CalendarSectionRow(
                 event.endDate.isAfter(state.startDateTime) && event.endDate.isBefore(state.endDateTime),
             )
         }.filter { (event, startHit, endHit) ->
-            startHit || endHit || (event.startDate.isBefore(state.startDateTime) && event.endDate.isAfter(state.endDateTime))
+            startHit || endHit || (event.startDate.isBefore(state.startDateTime) && event.endDate.isAfter(
+                state.endDateTime
+            ))
         }
 
         Text(
@@ -169,7 +225,9 @@ fun CalendarSectionRow(
                         .offset { IntOffset(offsetX, 0) }
                         .background(event.color, shape = shape)
                         .clip(shape)
-                        .clickable { }
+                        .clickable {
+                            Log.d("TAG", "ScheduleCalendar: Clicked")
+                        }
                         .padding(4.dp)
                     ) {
                         Text(
@@ -183,7 +241,7 @@ fun CalendarSectionRow(
                         AnimatedVisibility(visible = eventTimesVisible) {
                             Text(
                                 text = event.startDate.format(DateTimeFormatter.ofPattern("HH:mm")) + " - " +
-                                    event.endDate.format(DateTimeFormatter.ofPattern("HH:mm")),
+                                        event.endDate.format(DateTimeFormatter.ofPattern("HH:mm")),
                                 fontSize = 12.sp,
                                 color = Color.White,
                                 maxLines = 1,
@@ -251,7 +309,11 @@ internal fun HoursRow(
             val placeables = measurables.map { it.measure(constraints) to it.localDateTime }
 
             val width = constraints.maxWidth
-            val height = if (placeables.isNotEmpty()) { placeables.maxOf { it.first.height } } else { 0 }
+            val height = if (placeables.isNotEmpty()) {
+                placeables.maxOf { it.first.height }
+            } else {
+                0
+            }
             layout(width, height) {
                 placeables.forEach { (placeable, localDateTime) ->
                     val origin = state.offsetFraction(localDateTime) * width
@@ -305,7 +367,8 @@ private data class LocalDateTimeData(
 }
 
 private val Measurable.localDateTime: LocalDateTime
-    get() = (parentData as? LocalDateTimeData)?.localDateTime ?: error("No LocalDateTime for measurable $this")
+    get() = (parentData as? LocalDateTimeData)?.localDateTime
+        ?: error("No LocalDateTime for measurable $this")
 
 fun LocalDateTime.between(
     target: LocalDateTime,
