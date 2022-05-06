@@ -9,12 +9,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:name="com.lyhv.timetable_sample.CalendarApplication"
-        android:theme="@style/Theme.ScheduleCalendar">
+        android:theme="@style/Theme.TimeTable">
         <activity
             android:name="com.lyhv.timetable_sample.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.ScheduleCalendar.NoActionBar">
+            android:theme="@style/Theme.TimeTable.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

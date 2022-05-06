@@ -3,9 +3,9 @@ dependencyResolutionManagement {
   repositories {
     google()
     mavenCentral()
-    jcenter() // Warning: this repository is going to shut down soon
+     // Warning: this repository is going to shut down soon
   }
 }
-rootProject.name = "ScheduleCalendar"
+rootProject.name = "TimeTableSample"
 include(":app")
 include(":timetable")

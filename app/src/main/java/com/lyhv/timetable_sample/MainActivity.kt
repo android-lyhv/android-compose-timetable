@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.timetable.TimeLineDivider
 import com.lyhv.timetable_sample.ui.theme.B400
 import com.lyhv.timetable_sample.ui.theme.G500
 import com.lyhv.timetable_sample.ui.theme.R500

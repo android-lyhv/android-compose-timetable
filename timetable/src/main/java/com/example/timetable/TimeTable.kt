@@ -1,4 +1,4 @@
-package com.lyhv.timetable_sample
+package com.example.timetable
 
 import android.graphics.Paint
 import androidx.compose.foundation.Canvas
@@ -11,7 +11,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 
 @Composable
 fun TimeLineDivider(modifier: Modifier) {
-    val houseSpace = 360f
+    val houseSpace = 200f
     val minusSpace = houseSpace / 6
     val textOffset = 200f
     val paint = Paint()
@@ -26,7 +26,7 @@ fun TimeLineDivider(modifier: Modifier) {
             }
             drawLine(
                 color = Color.Gray,
-                strokeWidth = 10f,
+                strokeWidth = 8f,
                 start = Offset(textOffset -20f, houseSpace * house),
                 end = Offset(50f + textOffset, houseSpace * house),
             )
