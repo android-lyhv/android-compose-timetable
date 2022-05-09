@@ -1,18 +1,13 @@
 package com.lyhv.timetable_sample
 
+import android.annotation.SuppressLint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.animation.ExperimentalAnimationApi
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.rememberScrollableState
-import androidx.compose.foundation.gestures.scrollable
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.Icon
@@ -29,7 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.timetable.TimeLineDivider
+import com.example.timetable.MainTable
 import com.lyhv.timetable_sample.ui.theme.B400
 import com.lyhv.timetable_sample.ui.theme.G500
 import com.lyhv.timetable_sample.ui.theme.R500
@@ -38,42 +33,21 @@ import com.lyhv.timetable_sample.ui.theme.Y500
 import org.threeten.bp.LocalDateTime
 
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalAnimationApi::class)
+    @SuppressLint("UnusedMaterialScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             ScheduleCalendarTheme {
-
                 Scaffold {
                     Surface {
-                         //ScheduleCalendarDemo()
-                        Column(modifier = Modifier.fillMaxHeight()){
-                            var offset = 0f
-                            BoxWithConstraints(
-                                Modifier
-                                    .fillMaxSize()
-                                    .scrollable(
-                                        orientation = Orientation.Vertical,
-                                        // Scrollable state: describes how to consume
-                                        // scrolling delta and update offset
-                                        state = rememberScrollableState { delta ->
-                                            offset += delta
-                                            delta
-                                        }
-                                    )
-                            ) {
-                                TimeLineDivider(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                )
-                            }
-                        }
+                        MainTable()
                     }
                 }
             }
         }
     }
 }
+
 @Composable
 fun ScheduleCalendarDemo() {
     val viewSpan = remember { mutableStateOf(48 * 3600L) }

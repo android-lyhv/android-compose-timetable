@@ -2,13 +2,13 @@ package com.lyhv.timetable_sample.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple200 = Color(0xFFBB86FC)
+val Purple200 = Color(0x81BB86FC)
 val Purple500 = Color(0xFF6200EE)
 val Purple700 = Color(0xFF3700B3)
 val Teal200 = Color(0xFF03DAC5)
 
 
-val B100 = Color(0xFF4C9AFF)
+val B100 = Color(0x5269A8FA)
 val B200 = Color(0xFF2684FF)
 val B300 = Color(0xFF0065FF)
 val B300_85 = Color(0x550065FF)
@@ -54,7 +54,7 @@ val DN90 = Color(0xFF515f70)
 val DN900 = Color(0xFFd9dde3)
 val DN900a = Color(0xFF090a0b)
 val DN90a = Color(0xA1090a0b)
-val G100 = Color(0xFF79F2C0)
+val G100 = Color(0xB479F2C0)
 val G200 = Color(0xFF57D9A3)
 val G300 = Color(0xFF36B37E)
 val G400 = Color(0xFF00875A)
