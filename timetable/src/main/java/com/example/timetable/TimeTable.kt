@@ -2,6 +2,7 @@ package com.example.timetable
 
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.RectF
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -48,7 +49,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.example.timetable.model.GestureHelper
 import com.example.timetable.model.Stage
 import org.threeten.bp.LocalTime
 import org.threeten.bp.format.DateTimeFormatter
@@ -80,6 +80,11 @@ fun MainTable() {
     val matrixTransform by remember {
         mutableStateOf(Matrix())
     }
+    val rect = RectF(
+        0f,
+        0f,
+        with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() },
+        with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() })
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -95,6 +100,7 @@ fun MainTable() {
                             centroid.x,
                             centroid.y
                         )
+                        bound(rect, rect)
                     }
                 }
             }
@@ -360,30 +366,5 @@ fun TimeLineDivider(modifier: Modifier, pan: Offset, matrix: Matrix) {
             }
 
         }
-    }
-}
-
-fun Matrix.mapOffset(offset: Offset): Offset {
-    val absolute = FloatArray(2)
-    absolute[0] = offset.x
-    absolute[1] = offset.y
-    this.mapPoints(absolute)
-    return Offset(absolute[0], absolute[1])
-}
-
-fun Matrix.limitScale(
-    minScale: Float,
-    maxScale: Float,
-    focusX: Float,
-    focusY: Float
-) {
-    val values = FloatArray(9)
-    this.getValues(values)
-    val scaleX = values[Matrix.MSCALE_X]
-    val scaleY = values[Matrix.MSCALE_Y]
-    if (scaleX >= maxScale) {
-        this.postScale(maxScale / scaleX, maxScale / scaleY, focusX, focusY)
-    } else if (scaleX <= minScale) {
-        this.postScale(minScale / scaleX, minScale / scaleY, focusX, focusY)
     }
 }
