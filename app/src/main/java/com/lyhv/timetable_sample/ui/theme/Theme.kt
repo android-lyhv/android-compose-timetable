@@ -28,9 +28,8 @@ private val LightColorPalette = lightColors(
     onBackground = N800,
 )
 
-
 @Composable
-fun ScheduleCalendarTheme(
+fun TimeTableTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable() () -> Unit
 ) {

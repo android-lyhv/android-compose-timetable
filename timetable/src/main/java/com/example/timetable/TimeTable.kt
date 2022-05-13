@@ -4,6 +4,7 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
 import android.widget.Toast
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -29,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -37,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -55,10 +58,12 @@ import org.threeten.bp.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 object TimeTable {
-    val TIME_LINE_WIDTH = 50.dp
-    val TIME_SPAN_SIZE = 20.dp
+    const val TOTAL_HOUR_OF_DAY = 24
+    const val SPAN_MINUTE = 10
     const val MIN_SCALE = 1f
     const val MAX_SCALE = 3f
+    val TIME_LINE_WIDTH = 50.dp
+    val TIME_SPAN_SIZE = 20.dp
 
     enum class FormatType constructor(val value: String) {
         TYPE_SHORT_HOUR("HH:mm")
@@ -80,17 +85,33 @@ fun MainTable() {
     val matrixTransform by remember {
         mutableStateOf(Matrix())
     }
-    val rect = RectF(
+    val bottomBound = TimeTable.TIME_SPAN_SIZE.times(
+        TimeTable.TOTAL_HOUR_OF_DAY.times(60).div(TimeTable.SPAN_MINUTE)
+    )
+    val boundRect = RectF(
         0f,
         0f,
-        with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() },
-        with(LocalDensity.current) { LocalConfiguration.current.screenHeightDp.dp.toPx() })
-    Box(
+        with(LocalDensity.current) {
+            LocalConfiguration.current.screenWidthDp.dp.minus(TimeTable.TIME_LINE_WIDTH).toPx()
+        },
+        with(LocalDensity.current) { bottomBound.toPx() })
+    val viewRect = RectF(
+        0f,
+        0f,
+        with(LocalDensity.current) {
+            LocalConfiguration.current.screenWidthDp.dp.minus(TimeTable.TIME_LINE_WIDTH).toPx()
+        },
+        with(LocalDensity.current) {
+            LocalConfiguration.current.screenHeightDp.dp.minus(TimeTable.TIME_LINE_WIDTH).toPx()
+        }
+    )
+    val flingOffsetX = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+    val velocityTracker = VelocityTracker()
+    BoxWithConstraints(
         modifier = Modifier
-            .fillMaxSize()
             .pointerInput(Unit) {
-                detectTransformGestures { centroid, pan, zoom, rotation ->
-                    offset.value = offset.value.plus(Offset(pan.x, pan.y))
+                detectTransformGestures { centroid, pan, zoom, _ ->
                     matrixTransform.apply {
                         postScale(zoom, zoom, centroid.x, centroid.y)
                         postTranslate(pan.x, pan.y)
@@ -100,10 +121,33 @@ fun MainTable() {
                             centroid.x,
                             centroid.y
                         )
-                        bound(rect, rect)
+                        bound(boundRect, viewRect)
                     }
+                    offset.value = offset.value.plus(Offset(pan.x, pan.y))
                 }
+//                detectDragGestures { change, dragAmount ->
+//                    val decayX = splineBasedDecay<Float>(this)
+//                    val velocity = velocityTracker
+//                        .apply {
+//                            addPointerInputChange(change)
+//                        }
+//                        .calculateVelocity()
+//                    decayX.calculateTargetValue(change.position.y, velocity.y)
+//                    var previous = change.position.y
+//                    coroutineScope.launch {
+//                        flingOffsetX.animateDecay(velocity.y, decayX) {
+//                            Log.d("TAG", "MainTable tran: ${this.value}")
+//                            val dx = this.value - previous
+//                            Log.d("TAG", "MainTable: $dx ")
+//                            matrixTransform.postTranslate(0f, dx)
+//                            matrixTransform.bound(boundRect, viewRect)
+//                            offset.value = offset.value.plus(Offset(dx, dx))
+//                            previous = this.value
+//                        }
+//                    }
+//                }
             }
+            .fillMaxSize()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -179,6 +223,23 @@ fun TableContain(matrix: Matrix, stages: List<Stage>) {
         modifier = Modifier
             .fillMaxWidth()
     ) {
+        // Draw Box line divider
+        val strokeWidth = with(LocalDensity.current) { 0.5.dp.toPx() }
+        val houseSpace = with(LocalDensity.current) { (TimeTable.TIME_SPAN_SIZE * 6).toPx() }
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            (0 until TimeTable.TOTAL_HOUR_OF_DAY).forEach {
+                val offsetLineStart =
+                    matrix.mapOffset(Offset(0f, houseSpace * it))
+                val offsetLineEnd = matrix.mapOffset(Offset(size.width, houseSpace * it))
+                drawLine(
+                    color = Color.LightGray,
+                    strokeWidth = strokeWidth,
+                    start = offsetLineStart,
+                    end = offsetLineEnd
+                )
+            }
+        }
+        // Ad event
         stages.forEachIndexed { index, stage ->
             val offsetX = with(LocalDensity.current) { stageWidth.times(index).toPx() }
             val stageOffset = Offset(
@@ -312,7 +373,7 @@ fun StageContain(matrix: Matrix, stages: List<Stage>) {
 @Composable
 fun TimeLineDivider(modifier: Modifier, pan: Offset, matrix: Matrix) {
     val timeLineWidth = with(LocalDensity.current) { (TimeTable.TIME_LINE_WIDTH).toPx() }
-    val houseSpace = with(LocalDensity.current) { (TimeTable.TIME_SPAN_SIZE * 6).toPx() }
+    val hourSpace = with(LocalDensity.current) { (TimeTable.TIME_SPAN_SIZE * 6).toPx() }
     val minuteSpan = with(LocalDensity.current) { TimeTable.TIME_SPAN_SIZE.toPx() }
     val houseDividerStrokeWidth = with(LocalDensity.current) { 2.dp.toPx() }
     val minuteDividerStrokeWidth = with(LocalDensity.current) { 1.dp.toPx() }
@@ -328,27 +389,27 @@ fun TimeLineDivider(modifier: Modifier, pan: Offset, matrix: Matrix) {
     paint.textSize = textSize
     paint.color = android.graphics.Color.BLACK
     Canvas(modifier = modifier) {
-        (0..23).forEach { house ->
+        (0 until TimeTable.TOTAL_HOUR_OF_DAY).forEach { hour ->
             drawIntoCanvas {
                 val offset =
-                    matrix.mapOffset(Offset(houseTextOffset, houseSpace * house))
+                    matrix.mapOffset(Offset(houseTextOffset, hourSpace * hour))
                 it.nativeCanvas.drawText(
-                    "$house:00",
+                    "$hour:00",
                     houseTextOffset,
                     offset.y - (paint.descent() + paint.ascent()) / 2,
                     paint
                 )
             }
             val offsetLineStart =
-                matrix.mapOffset(Offset(houseDividerOffset, houseSpace * house))
-            val offsetLineEnd = matrix.mapOffset(Offset(timeLineWidth, houseSpace * house))
+                matrix.mapOffset(Offset(houseDividerOffset, hourSpace * hour))
+            val offsetLineEnd = matrix.mapOffset(Offset(timeLineWidth, hourSpace * hour))
             drawLine(
                 color = Color.Gray,
                 strokeWidth = houseDividerStrokeWidth,
                 start = Offset(houseDividerOffset, offsetLineStart.y),
                 end = Offset(timeLineWidth, offsetLineEnd.y),
             )
-            val startSpace = houseSpace * house + minuteSpan
+            val startSpace = hourSpace * hour + minuteSpan
             (0..4).forEach {
                 val offsetY = startSpace + it * minuteSpan
                 drawLine(
