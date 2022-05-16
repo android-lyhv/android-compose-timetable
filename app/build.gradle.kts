@@ -57,6 +57,12 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.3.0-alpha08")
     implementation("com.google.accompanist:accompanist-pager:0.10.0")
     implementation ("com.jakewharton.threetenabp:threetenabp:1.4.0")
+    // Integration with activities
+    implementation ("androidx.activity:activity-compose:1.4.0")
+    // Integration with ViewModels
+    implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.4.1")
+    // Navigation
+    implementation ("androidx.navigation:navigation-compose:2.5.0-rc01" )
     testImplementation("junit:junit:4.+")
     androidTestImplementation("androidx.test.ext:junit:1.1.2")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.3.0")
