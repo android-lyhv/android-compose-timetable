@@ -3,7 +3,6 @@ package com.example.timetable
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
-import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -27,8 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -52,6 +49,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.timetable.model.Stage
 import org.threeten.bp.LocalTime
 import org.threeten.bp.format.DateTimeFormatter
@@ -64,6 +62,7 @@ object TimeTable {
     const val MAX_SCALE = 3f
     val TIME_LINE_WIDTH = 50.dp
     val TIME_SPAN_SIZE = 20.dp
+    val BottomNavHeight = 56.dp
 
     enum class FormatType constructor(val value: String) {
         TYPE_SHORT_HOUR("HH:mm")
@@ -80,11 +79,7 @@ object TimeTable {
 }
 
 @Composable
-fun MainTable() {
-    val offset = remember { mutableStateOf(Offset.Zero) }
-    val matrixTransform by remember {
-        mutableStateOf(Matrix())
-    }
+fun MainTable(viewModel: TimeTableViewModel = viewModel(), onEvent: (String) -> Unit) {
     val bottomBound = TimeTable.TIME_SPAN_SIZE.times(
         TimeTable.TOTAL_HOUR_OF_DAY.times(60).div(TimeTable.SPAN_MINUTE)
     )
@@ -102,7 +97,8 @@ fun MainTable() {
             LocalConfiguration.current.screenWidthDp.dp.minus(TimeTable.TIME_LINE_WIDTH).toPx()
         },
         with(LocalDensity.current) {
-            LocalConfiguration.current.screenHeightDp.dp.minus(TimeTable.TIME_LINE_WIDTH).toPx()
+            LocalConfiguration.current.screenHeightDp.dp.minus(TimeTable.TIME_LINE_WIDTH)
+                .minus(TimeTable.BottomNavHeight).toPx()
         }
     )
     val flingOffsetX = remember { Animatable(0f) }
@@ -112,7 +108,7 @@ fun MainTable() {
         modifier = Modifier
             .pointerInput(Unit) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
-                    matrixTransform.apply {
+                    val new = viewModel.matrix.apply {
                         postScale(zoom, zoom, centroid.x, centroid.y)
                         postTranslate(pan.x, pan.y)
                         limitScale(
@@ -123,7 +119,8 @@ fun MainTable() {
                         )
                         bound(boundRect, viewRect)
                     }
-                    offset.value = offset.value.plus(Offset(pan.x, pan.y))
+                    viewModel.setMatrix(new)
+                    //  offset.value = offset.value.plus(Offset(pan.x, pan.y))
                 }
 //                detectDragGestures { change, dragAmount ->
 //                    val decayX = splineBasedDecay<Float>(this)
@@ -174,7 +171,7 @@ fun MainTable() {
                 }
 
                 StageContain(
-                    matrixTransform,
+                    viewModel.matrix,
                     Stage.default
                 )
             }
@@ -197,14 +194,14 @@ fun MainTable() {
                     TimeLineDivider(
                         modifier = Modifier
                             .width(TimeTable.TIME_LINE_WIDTH),
-                        offset.value,
-                        matrixTransform
+                        viewModel.matrix,
                     )
                 }
 
                 TableContain(
-                    matrixTransform,
-                    stages = Stage.default
+                    viewModel.matrix,
+                    stages = Stage.default,
+                    onEvent
                 )
             }
         }
@@ -212,7 +209,7 @@ fun MainTable() {
 }
 
 @Composable
-fun TableContain(matrix: Matrix, stages: List<Stage>) {
+fun TableContain(matrix: Matrix, stages: List<Stage>, onEvent: (String) -> Unit) {
     if (stages.isEmpty()) return
     val scale = GestureHelper.getScale(matrix)
     val stageWidth =
@@ -288,9 +285,7 @@ fun TableContain(matrix: Matrix, stages: List<Stage>) {
                         )
                         .fillMaxSize()
                         .clickable {
-                            Toast
-                                .makeText(context, it.name, Toast.LENGTH_SHORT)
-                                .show()
+                            onEvent(it.name)
                         },
                 ) {
                     Text(
@@ -371,7 +366,7 @@ fun StageContain(matrix: Matrix, stages: List<Stage>) {
 }
 
 @Composable
-fun TimeLineDivider(modifier: Modifier, pan: Offset, matrix: Matrix) {
+fun TimeLineDivider(modifier: Modifier, matrix: Matrix) {
     val timeLineWidth = with(LocalDensity.current) { (TimeTable.TIME_LINE_WIDTH).toPx() }
     val hourSpace = with(LocalDensity.current) { (TimeTable.TIME_SPAN_SIZE * 6).toPx() }
     val minuteSpan = with(LocalDensity.current) { TimeTable.TIME_SPAN_SIZE.toPx() }
