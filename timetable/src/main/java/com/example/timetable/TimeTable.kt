@@ -3,14 +3,20 @@ package com.example.timetable
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
-import androidx.compose.animation.core.Animatable
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -26,17 +32,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Divider
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -101,48 +105,52 @@ fun MainTable(viewModel: TimeTableViewModel = viewModel(), onEvent: (String) -> 
                 .minus(TimeTable.BottomNavHeight).toPx()
         }
     )
-    val flingOffsetX = remember { Animatable(0f) }
-    val coroutineScope = rememberCoroutineScope()
-    val velocityTracker = VelocityTracker()
     BoxWithConstraints(
         modifier = Modifier
             .pointerInput(Unit) {
-                detectTransformGestures { centroid, pan, zoom, _ ->
-                    val new = viewModel.matrix.apply {
-                        postScale(zoom, zoom, centroid.x, centroid.y)
-                        postTranslate(pan.x, pan.y)
-                        limitScale(
-                            TimeTable.MIN_SCALE,
-                            TimeTable.MAX_SCALE,
-                            centroid.x,
-                            centroid.y
-                        )
-                        bound(boundRect, viewRect)
-                    }
-                    viewModel.setMatrix(new)
-                    //  offset.value = offset.value.plus(Offset(pan.x, pan.y))
-                }
-//                detectDragGestures { change, dragAmount ->
-//                    val decayX = splineBasedDecay<Float>(this)
-//                    val velocity = velocityTracker
-//                        .apply {
-//                            addPointerInputChange(change)
-//                        }
-//                        .calculateVelocity()
-//                    decayX.calculateTargetValue(change.position.y, velocity.y)
-//                    var previous = change.position.y
-//                    coroutineScope.launch {
-//                        flingOffsetX.animateDecay(velocity.y, decayX) {
-//                            Log.d("TAG", "MainTable tran: ${this.value}")
-//                            val dx = this.value - previous
-//                            Log.d("TAG", "MainTable: $dx ")
-//                            matrixTransform.postTranslate(0f, dx)
-//                            matrixTransform.bound(boundRect, viewRect)
-//                            offset.value = offset.value.plus(Offset(dx, dx))
-//                            previous = this.value
-//                        }
+//                detectTransformGestures { centroid, pan, zoom, _ ->
+//                    val new = viewModel.matrix.apply {
+//                        postScale(zoom, zoom, centroid.x, centroid.y)
+//                        postTranslate(pan.x, pan.y)
+//                        limitScale(
+//                            TimeTable.MIN_SCALE,
+//                            TimeTable.MAX_SCALE,
+//                            centroid.x,
+//                            centroid.y
+//                        )
+//                        bound(boundRect, viewRect)
 //                    }
+//                    viewModel.setMatrix(new)
 //                }
+                forEachGesture {
+                    awaitPointerEventScope {
+                        awaitFirstDown()
+                        do {
+                            val event = awaitPointerEvent()
+                            val scale = event.calculateZoom()
+                            val pan = event.calculatePan()
+                            val centroid = event.calculateCentroid()
+                            val new = viewModel.matrix.apply {
+                                if (centroid.isSpecified){
+                                    postScale(scale, scale, centroid.x, centroid.y)
+                                }
+                                if (pan.isSpecified){
+                                    postTranslate(pan.x, pan.y)
+                                }
+                                if (centroid.isSpecified){
+                                    limitScale(
+                                        TimeTable.MIN_SCALE,
+                                        TimeTable.MAX_SCALE,
+                                        centroid.x,
+                                        centroid.y
+                                    )
+                                }
+                                bound(boundRect, viewRect)
+                            }
+                            viewModel.setMatrix(new)
+                        } while (event.changes.any { it.pressed })
+                    }
+                }
             }
             .fillMaxSize()
     ) {
