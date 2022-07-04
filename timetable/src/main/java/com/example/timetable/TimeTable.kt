@@ -3,9 +3,6 @@ package com.example.timetable
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
-import android.util.Log
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.splineBasedDecay
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -32,14 +29,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.positionChange
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -54,7 +47,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.timetable.model.Stage
-import kotlinx.coroutines.launch
 import org.threeten.bp.LocalTime
 import org.threeten.bp.format.DateTimeFormatter
 import kotlin.math.roundToInt
@@ -106,75 +98,31 @@ fun MainTable(viewModel: TimeTableViewModel = viewModel(), onEvent: (String) -> 
         }
     )
     val scope = rememberCoroutineScope()
-    val offsetX = Animatable(0f)
-    val offsetY = Animatable(0f)
-    val velocityTracker = VelocityTracker()
 
     BoxWithConstraints(
         modifier = Modifier
             .pointerInput(Unit) {
-                val decay = splineBasedDecay<Float>(this)
-                detectTransformGesturesAndPointer { centroid, pan, zoom, rotation, change ->
-                    val new = viewModel.matrix.apply {
-                        postScale(zoom, zoom, centroid.x, centroid.y)
-                        postTranslate(pan.x, pan.y)
-                        limitScale(
-                            TimeTable.MIN_SCALE,
-                            TimeTable.MAX_SCALE,
-                            centroid.x,
-                            centroid.y
-                        )
-                        bound(boundRect, viewRect)
-                    }
-                    viewModel.setMatrix(new)
-                    change?.let {
-                        if (it.positionChange().isSpecified) {
-                            velocityTracker.addPointerInputChange(it)
-                            val velocityY = velocityTracker.calculateVelocity().y
-                            val velocityX = velocityTracker.calculateVelocity().x
-                            var dentalY = 0F
-                            var dentalX = 0F
-                            scope.launch {
-                                val verticalOffset =
-                                    offsetY.value + it.positionChange().y
-                                offsetY.snapTo(verticalOffset)
-                                var current = offsetY.value
-                                offsetY.animateDecay(velocityY, decay) {
-                                    dentalY = this.value - current
-                                    current = this.value
-                                    Log.d(
-                                        "TAG",
-                                        "MainTable animateDecay Y1: ${this.value} $dentalY"
-                                    )
-                                    val currentMatrix = viewModel.matrix
-                                    currentMatrix.postTranslate(dentalX, dentalY)
-                                    currentMatrix.bound(boundRect, viewRect)
-                                    viewModel.setMatrix(currentMatrix)
-                                }
-
-                            }
-                            scope.launch {
-                                val horizontalOffset =
-                                    offsetX.value + it.positionChange().x
-                                offsetX.snapTo(horizontalOffset)
-                                var current = offsetX.value
-                                offsetX.animateDecay(velocityX, decay) {
-                                    dentalX = this.value - current
-                                    current = this.value
-                                    Log.d(
-                                        "TAG",
-                                        "MainTable animateDecay X1: ${this.value} $dentalX"
-                                    )
-                                    val currentMatrix = viewModel.matrix
-                                    currentMatrix.postTranslate(dentalX, dentalY)
-                                    currentMatrix.bound(boundRect, viewRect)
-                                    viewModel.setMatrix(currentMatrix)
-                                }
-
-                            }
+                detectTransformGesturesAndPointer(scope = scope,
+                    onGesture = { centroid, pan, zoom, rotation ->
+                        val new = viewModel.matrix.apply {
+                            postScale(zoom, zoom, centroid.x, centroid.y)
+                            postTranslate(pan.x, pan.y)
+                            limitScale(
+                                TimeTable.MIN_SCALE,
+                                TimeTable.MAX_SCALE,
+                                centroid.x,
+                                centroid.y
+                            )
+                            bound(boundRect, viewRect)
                         }
-                    }
-                }
+                        viewModel.setMatrix(new)
+                    },
+                    onFling = { fling ->
+                        val currentMatrix = viewModel.matrix
+                        currentMatrix.postTranslate(fling.x, fling.y)
+                        currentMatrix.bound(boundRect, viewRect)
+                        viewModel.setMatrix(currentMatrix)
+                    })
             }
             .fillMaxSize()
     ) {

@@ -1,11 +1,9 @@
 package com.example.timetable
 
-import android.content.Context
 import android.graphics.Matrix
 import android.graphics.RectF
-import android.util.Log
-import android.view.View
-import android.widget.OverScroller
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.splineBasedDecay
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateCentroidSize
@@ -14,16 +12,19 @@ import androidx.compose.foundation.gestures.calculateRotation
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.forEachGesture
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChangeConsumed
 import androidx.compose.ui.input.pointer.positionChanged
-import androidx.core.view.ViewCompat
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.pow
-import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 object GestureHelper {
@@ -125,73 +126,19 @@ fun Matrix.getRectF(rectF: RectF): RectF {
     return newRectF
 }
 
-class FlingRunnable(context: Context, val flingDental: (Float, Float) -> Unit) :
-    Runnable {
-    private val scroller: OverScroller = OverScroller(context)
-    private var currentX = 0
-    private var currentY = 0
-
-    fun fling(
-        boundRect: RectF,
-        velocityX: Float,
-        velocityY: Float
-    ) {
-        Log.d("TAG", "fling: $velocityX, $velocityY ")
-        scroller.forceFinished(true)
-        val viewWidth = boundRect.width()
-        val viewHeight = boundRect.height()
-        val startX = (-boundRect.left).roundToInt()
-        val minX: Int
-        val maxX: Int
-        val minY: Int
-        val maxY: Int
-        if (viewWidth < boundRect.width()) {
-            minX = 0
-            maxX = (boundRect.width() - viewWidth).roundToInt()
-        } else {
-            maxX = startX
-            minX = maxX
-        }
-        val startY = (-boundRect.top).roundToInt()
-        if (viewHeight < boundRect.height()) {
-            minY = 0
-            maxY = (boundRect.height() - viewHeight).roundToInt()
-        } else {
-            maxY = startY
-            minY = maxY
-        }
-        currentX = startX
-        currentY = startY
-        // If we actually can move, fling the scroller
-        if (startX != maxX || startY != maxY) {
-            scroller.fling(
-                startX, startY, velocityX.roundToInt(), velocityY.toInt(), minX,
-                maxX, minY, maxY, 0, 0
-            )
-        }
-    }
-
-    override fun run() {
-        if (scroller.isFinished) {
-            return  // remaining post that should not be handled
-        }
-        if (scroller.computeScrollOffset()) {
-            val newX = scroller.currX
-            val newY = scroller.currY
-            flingDental((currentX - newX).toFloat(), (currentY - newY).toFloat())
-            currentX = newX
-            currentY = newY
-//            // Post On animation
-//            ViewCompat.postInvalidateOnAnimation(view)
-        }
-    }
-}
-
 suspend fun PointerInputScope.detectTransformGesturesAndPointer(
     panZoomLock: Boolean = false,
-    onGesture: (centroid: Offset, pan: Offset, zoom: Float, rotation: Float, change: PointerInputChange?) -> Unit
+    scope: CoroutineScope,
+    onGesture: (centroid: Offset, pan: Offset, zoom: Float, rotation: Float) -> Unit,
+    onFling: (fling: Offset) -> Unit
 ) {
+    val offsetX = Animatable(0f)
+    val offsetY = Animatable(0f)
     forEachGesture {
+        val decay = splineBasedDecay<Float>(this)
+        val velocityTracker = VelocityTracker()
+        offsetX.stop()
+        offsetY.stop()
         awaitPointerEventScope {
             var rotation = 0f
             var zoom = 1f
@@ -235,16 +182,54 @@ suspend fun PointerInputScope.detectTransformGesturesAndPointer(
                             zoomChange != 1f ||
                             panChange != Offset.Zero
                         ) {
-                            onGesture(centroid, panChange, zoomChange, effectiveRotation, event.changes.lastOrNull())
-                        }
-                        event.changes.forEach {
-                            if (it.positionChanged()) {
-                                it.consumeAllChanges()
+                            onGesture(
+                                centroid,
+                                panChange,
+                                zoomChange,
+                                effectiveRotation
+                            )
+                            // Handler Fling
+                            event.changes.lastOrNull()?.let {
+                                if (it.positionChange().isSpecified) {
+                                    velocityTracker.addPointerInputChange(it)
+                                    val verticalOffset =
+                                        offsetY.value + it.positionChange().y
+                                    val horizontalOffset =
+                                        offsetX.value + it.positionChange().x
+                                    scope.launch {
+                                        offsetX.snapTo(horizontalOffset)
+                                        offsetY.snapTo(verticalOffset)
+                                    }
+                                }
+                                event.changes.forEach {
+                                    if (it.positionChanged()) {
+                                        it.consumeAllChanges()
+                                    }
+                                }
                             }
                         }
                     }
                 }
             } while (!canceled && event.changes.any { it.pressed })
+        }
+        var dentalY = 0F
+        var dentalX = 0F
+        scope.launch {
+            var current = offsetY.value
+            offsetY.animateDecay(velocityTracker.calculateVelocity().y, decay) {
+                dentalY = this.value - current
+                current = this.value
+                onFling(Offset(dentalX, dentalY))
+            }
+
+        }
+        scope.launch {
+            var current = offsetX.value
+            offsetX.animateDecay(velocityTracker.calculateVelocity().x, decay) {
+                dentalX = this.value - current
+                current = this.value
+                onFling(Offset(dentalX, dentalY))
+            }
         }
     }
 }
